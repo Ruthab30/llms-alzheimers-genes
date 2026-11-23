@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gene Brain Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE  a live research demo on a projector; minimal, modern, high-tech instrument
+   IDEA   one quiet graphite surface, a single glass brain, hairline dividers, mono readouts
+   COLOUR near-black neutral; brain cool graphite glass at rest; mint = higher, violet = lower; white/grey for categories
+   TYPE   Inter (text) + JetBrains Mono (labels, numbers)
+   LAYOUT fixed header and stats bar; brain fixed left, panel scrolls right; phone: one scrolling column */
+:root{color-scheme:dark;--bg:#07080a;--panel:#0c0e11;--line:#1c2026;--soft:#14171c;--ink:#eef1f4;--mute:#8a929c;--dim:#5c636d;--hi:#3cf0c8;--lo:#8b7bff;--ok:#3cf0c8;--bad:#ff6b7d}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,sans-serif;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.mono,.sh,.tools button,.chip,.legend,.orient,.stat b,.rr b,.dn,.v,.ans{font-family:"JetBrains Mono",ui-monospace,monospace}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 24px;padding:12px max(2vw,18px);border-bottom:1px solid var(--line);background:var(--bg);z-index:3}
+header h1{font:600 19px/1.2 Inter,sans-serif;margin:0;letter-spacing:-.01em}
+header h1 i{font-style:normal;display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--hi);box-shadow:0 0 10px var(--hi);margin-right:10px;vertical-align:2px}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.by{text-align:right;font-size:13px;color:var(--mute)}.by b{color:var(--ink);font-weight:500}
+.app{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);overflow:hidden}
+.vp{position:relative;height:100%;overflow:hidden;background:radial-gradient(60% 60% at 45% 48%,#11151b,var(--bg) 75%)}
+.vp:after{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(var(--soft) 1px,transparent 1px),linear-gradient(90deg,var(--soft) 1px,transparent 1px);background-size:48px 48px;opacity:.35;mask-image:radial-gradient(70% 70% at 50% 50%,transparent 40%,#000)}
+.vp canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;z-index:1}
+.tools{position:absolute;right:14px;top:14px;display:grid;gap:6px;z-index:2}
+.tools button{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);background:#0c0e11d9;border:1px solid var(--line);border-radius:4px;min-height:34px;min-width:88px;padding:0 10px;cursor:pointer}
+.tools button:hover{color:var(--ink);border-color:#3a414b}.tools button.on{color:var(--ink);border-color:var(--hi)}
+button:focus-visible,input:focus{outline:1px solid var(--hi);outline-offset:2px}
+.orient{position:absolute;left:18px;top:14px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);z-index:2}.orient span{color:var(--dim);margin-left:8px}
+.idle{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);font-size:13px;color:var(--mute);white-space:nowrap;transition:opacity .4s;z-index:2}
+.legend{position:absolute;left:18px;bottom:16px;display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.04em;color:var(--mute);z-index:2}
+.lbar{width:140px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--lo),#2a2f3a 50%,var(--hi))}
+#tags{position:absolute;inset:0;pointer-events:none;z-index:2}
+.tag{position:absolute;font-size:12px;line-height:1.2;color:var(--ink);white-space:nowrap;transition:opacity .25s;text-shadow:0 0 6px #000,0 0 12px #000}
+.tag i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tag.e i{background:#fff;box-shadow:0 0 8px #fff}.tag.c i{border:1px solid #9aa3ad}.tag.o{color:var(--mute);font-size:11px}.tag.o i{background:var(--dim);width:4px;height:4px}
+.tip{position:absolute;pointer-events:none;background:#0c0e11f2;border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:12px;display:none;white-space:nowrap;z-index:3}
+.side{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#2a2f37 transparent}
+.sec{border-bottom:1px solid var(--line)}
+.sh{padding:14px 18px 6px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
+.sh span{color:var(--dim);letter-spacing:.04em;text-transform:none}
+.pad{padding:6px 18px 16px}
+form{display:flex;gap:8px}
+input{flex:1;font:500 15px "JetBrains Mono",monospace;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 12px;min-height:42px;text-transform:uppercase}
+input::placeholder{text-transform:none;color:var(--dim);font-family:Inter,sans-serif}
+.go{font:600 13px Inter,sans-serif;color:#04110d;background:var(--hi);border:0;border-radius:4px;padding:0 16px;min-height:42px;cursor:pointer}
+.go:hover{filter:brightness(1.1)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{background:transparent;color:var(--mute);border:1px solid var(--line);border-radius:4px;font-size:12px;min-height:32px;padding:0 10px;cursor:pointer}
+.chip:hover{color:var(--ink);border-color:#3a414b}.chip.on{color:var(--ink);border-color:var(--hi)}
+.miss{color:var(--bad);font-size:12px;margin-top:6px;min-height:1.1em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:6px 18px;border-top:1px solid var(--soft);vertical-align:top}
+td:first-child{color:var(--mute);width:42%}
+.verdict{font:600 17px/1.25 Inter,sans-serif;letter-spacing:-.01em}
+.rr{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr) 3em;gap:10px;align-items:center;font-size:12px;padding:4px 0;color:#c4cad1}
+.rr b{font-size:12px;font-weight:400;text-align:right;color:var(--ink);white-space:nowrap}
+.trk{height:3px;background:var(--soft);border-radius:2px;overflow:hidden}.trk i{display:block;height:100%;border-radius:2px;transition:width .8s}
+.sum{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:12px;color:var(--mute)}.sum b{color:var(--ink);font-weight:500;font-family:"JetBrains Mono",monospace}
+.dn{display:grid;grid-template-columns:3.6em minmax(0,1fr) 3.6em;gap:10px;align-items:center;font-size:12px;color:var(--mute);padding:3px 0}
+.dt{position:relative;height:3px;background:var(--soft);border-radius:2px}.dt:before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:#3a414b}.dt i{position:absolute;top:0;height:100%;border-radius:2px}
+.dn b{font-weight:400;color:var(--ink);text-align:right}
+.mt{font-size:12px}.mt td{padding:8px 18px}.mt td:first-child{width:auto}
+.ans{font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.v{font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px;white-space:nowrap;border:1px solid}
+.v.ok{color:var(--ok);border-color:#1f5c50}.v.bad{color:var(--bad);border-color:#5c2430}.v.na{color:var(--mute);border-color:var(--line)}
+.why{font-size:12px;color:#b4bbc3;padding:0 18px 14px;min-height:3em}
+.why em{color:var(--dim);font-style:normal}
+details summary{cursor:pointer;list-style:none}details summary::-webkit-details-marker{display:none}
+.guide p{margin:0 0 10px;color:#b4bbc3;font-size:13px}.guide b{color:var(--ink);font-weight:500}
+.note{font-size:11px;color:var(--dim);margin:0;padding:14px 18px 20px;line-height:1.55}
+.foot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);background:var(--bg);z-index:3}
+.stat{padding:10px max(2vw,18px);font-size:12px;color:var(--mute);border-left:1px solid var(--line);display:flex;align-items:baseline;gap:12px}.stat:first-child{border-left:0}
+.stat .s{display:none}.stat b{font-size:20px;font-weight:500;color:var(--ink);flex:none}
+
+.tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.tabs a{font:500 12px "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);text-decoration:none;padding:7px 14px;border-radius:4px}
+.tabs a:hover{color:var(--ink)}.tabs a[aria-current=page]{color:#04110d;background:var(--hi)}
+.tabs a:focus-visible{outline:1px solid var(--hi);outline-offset:2px}
+[hidden]{display:none!important}
+.study{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#2a2f37 transparent}
+.wrap{max-width:1000px;margin:0 auto;padding:0 max(3vw,20px) 56px}
+.kick{font:500 11px "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--hi);margin:0 0 10px}
+.hero{padding:48px 0 32px}
+.hero h2{font:600 clamp(28px,4vw,42px)/1.12 Inter,sans-serif;letter-spacing:-.02em;margin:0;max-width:20ch;text-wrap:balance}
+.hero>p{color:var(--mute);font-size:16px;margin:12px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:18px 20px;background:linear-gradient(180deg,#0f1216,var(--panel))}
+.tk{font:500 10px "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.tile b{display:block;font:500 34px/1.1 "JetBrains Mono",monospace;color:var(--ink);margin:10px 0 6px;letter-spacing:-.02em}.tile b i{font-style:normal;color:var(--dim)}
+.tile p{margin:0;font-size:14px;color:#c4cad1}.tile small{display:block;margin-top:4px;font-size:12px;color:var(--hi)}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin-top:22px}
+.toc a{font:12px "JetBrains Mono",monospace;color:var(--mute);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px}.toc a:hover{color:var(--ink);border-color:#3a414b}
+.blk{padding:40px 0;border-top:1px solid var(--line);scroll-margin-top:8px}
+.blk h3{font:600 24px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 22px;max-width:30ch}
+.qrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.q{border:1px solid var(--line);border-radius:8px;padding:18px;background:var(--panel)}
+.qi{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:1px solid #1f5c50;color:var(--hi);font-size:16px;margin-bottom:12px}
+.q b{display:block;font-weight:500;font-size:15px;margin-bottom:4px}.q p{margin:0;font-size:13px;color:var(--mute)}
+.why{font-size:14px;color:var(--mute);margin:16px 0 0}
+.cell{border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:16px;overflow:hidden}
+.ch{display:flex;align-items:baseline;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:500;font-size:15px;flex-wrap:wrap}
+.ch span{font:500 12px "JetBrains Mono",monospace;color:var(--hi)}.ch em{font:400 12px "JetBrains Mono",monospace;color:var(--dim);font-style:normal;margin-left:auto}
+pre{margin:0;padding:14px 16px;background:#08090b;border-bottom:1px solid var(--line);overflow-x:auto;font:12.5px/1.6 "JetBrains Mono",monospace;color:#c9d1d9}
+pre k{color:#c792ea}pre f{color:#82aaff}pre s{color:#c3e88d;text-decoration:none}pre n{color:#f78c6c}pre c{color:#5c636d}
+.out{padding:14px 16px 16px;position:relative}
+.ol{display:block;font:500 10px "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.out img{display:block;width:100%;height:auto;border-radius:4px}
+.funnel{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.funnel div{border:1px solid var(--line);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--mute);min-width:120px}
+.funnel b{display:block;font:500 24px "JetBrains Mono",monospace;color:var(--ink)}.funnel i{font-style:normal;color:var(--dim)}
+.ans2{display:grid;gap:8px}
+.aj{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:10px 12px;flex-wrap:wrap}
+.aj span{font-size:13px;min-width:9em;color:#c4cad1}.aj code{font:12.5px "JetBrains Mono",monospace;color:#c9d1d9}
+.aj s{color:#c3e88d;text-decoration:none}.aj n{color:#f78c6c}.aj.bad{border-color:#5c2430}
+.ans2 p{margin:4px 0 0;font-size:13px;color:var(--mute)}.ans2 .hi{color:var(--hi);font-weight:500}
+.sc{width:100%;border-collapse:collapse;font-size:13px}
+.sc th{text-align:left;font:500 10px "JetBrains Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:6px 10px 8px 0;border-bottom:1px solid var(--line)}
+.sc td{padding:8px 10px 8px 0;border-top:1px solid var(--soft);font-family:"JetBrains Mono",monospace;width:auto;color:var(--ink)}.sc td:first-child{font-family:Inter,sans-serif;color:#c4cad1;width:auto}.sc .dim td{color:var(--dim)}
+.shot{display:block;position:relative;text-decoration:none}.shot img{border:1px solid var(--line)}
+.shot span{position:absolute;right:12px;bottom:12px;font:600 12px Inter,sans-serif;color:#04110d;background:var(--hi);padding:8px 12px;border-radius:4px}
+.fig{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:16px;margin-bottom:16px}
+.fh{display:flex;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;margin-bottom:12px}.fh b{font-weight:500;font-size:15px}.fh span{font-size:12px;color:var(--dim)}
+.fig img{display:block;width:100%;height:auto}
+.cap{font-size:12px;color:var(--dim);margin:8px 0 0}
+.bars{padding:4px 0}
+.bar{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr) 4em;gap:12px;align-items:center;font-size:13px;color:#c4cad1;padding:6px 0}
+.bar>b{font:400 13px "JetBrains Mono",monospace;color:var(--ink);text-align:right}
+.bt{position:relative;height:12px;background:var(--soft);border-radius:2px}
+.bt i{position:absolute;left:0;top:0;bottom:0;background:#dfe4ea;border-radius:0 4px 4px 0}.bt i.ref{background:#4a525c}
+.bt u{position:absolute;top:-5px;bottom:-5px;width:0;border-left:1px dashed var(--hi)}
+.note2{border-left:2px solid var(--hi);padding:4px 0 4px 16px;font-size:14px;color:#c4cad1}.note2 b{color:var(--ink);font-weight:500}
+.rw{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}
+.rw div{border:1px solid var(--line);border-radius:8px;padding:16px;background:var(--panel);font-size:13px}
+.rw b{font-weight:500;font-size:14px;color:var(--ink)}.rw span{display:block;color:var(--mute);margin:6px 0}.rw em{display:block;font-style:normal;color:var(--hi)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
+.ticks{list-style:none;margin:0;padding:0}.ticks li{font-size:14px;color:#c4cad1;padding:7px 0 7px 22px;border-top:1px solid var(--soft);position:relative}
+.ticks li:before{content:"";position:absolute;left:2px;top:15px;width:8px;height:1px;background:var(--hi)}
+details summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer}.plus{font:16px "JetBrains Mono",monospace;color:var(--mute)}details[open] .plus{transform:rotate(45deg)}
+.refs{padding-left:22px;margin:16px 0 0}.refs li{font-size:13px;color:var(--mute);margin-bottom:8px;line-height:1.55}
+.credit{font-size:13px;color:var(--dim);margin:28px 0 0}.credit a{color:var(--hi)}
+@media(max-width:860px){.tiles,.qrow,.two{grid-template-columns:minmax(0,1fr)}.tabs{order:3;width:100%}.tabs a{flex:1;text-align:center}.ch em{margin-left:0;width:100%}.shot span{position:static;display:inline-block;margin-top:10px}pre{font-size:11px}.out,.fig{padding:12px}}
+@media(max-width:980px){.app{grid-template-columns:minmax(0,1fr);overflow-y:auto}.vp{height:62vh;min-height:420px}.side{overflow:visible;border-left:0;border-top:1px solid var(--line)}.by{text-align:left}.foot{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
+@media(max-width:520px){header p{display:none}.vp{height:440px;min-height:0}.lbar{width:80px}.tools{grid-auto-flow:column;top:auto;bottom:42px;left:8px;right:8px}.tools button{min-width:0;padding:0 4px;font-size:10px;letter-spacing:.02em}.idle{bottom:90px}.legend{bottom:12px}.legend span:last-child{display:none}.foot{grid-template-columns:repeat(4,minmax(0,1fr))}.stat{padding:6px 8px;flex-direction:column;gap:0;font-size:10px;line-height:1.3;border-top:0!important;border-left:1px solid var(--line)!important}.stat:first-child{border-left:0!important}.stat .l{display:none}.stat .s{display:block}.stat b{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.tag,.idle,.trk i{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1><i></i>LLMs and Alzheimer's Genes</h1><p>Do large language models know where Alzheimer's risk genes are active in the brain?</p></div>
+  <nav class="tabs" aria-label="Pages"><a href="#explore" id="tabE" aria-current="page">Explorer</a><a href="#study" id="tabS">The Study</a></nav>
+  <div class="by"><b>Rutha Borse</b><br>School of Information · The University of Texas at Austin</div>
+</header>
+<main class="app">
+  <section class="vp" id="vp" aria-label="3D brain viewer">
+    <canvas id="c"></canvas>
+    <div class="orient">Left hemisphere<span>Desikan-Killiany</span></div>
+    <div class="tools">
+      <button type="button" data-view="medial">Medial</button>
+      <button type="button" data-view="lateral">Lateral</button>
+      <button type="button" data-view="below">Below</button>
+      <button type="button" id="spin" class="on">Rotate</button>
+      <button type="button" id="all">All labels</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+    <div id="tags"></div>
+    <div class="tip" id="tip"></div>
+    <div class="idle" id="idle">Choose a gene to light up the brain</div>
+    <div class="legend">LOWER<span class="lbar"></span>HIGHER <span>vs the gene's own average</span></div>
+  </section>
+  <aside class="side">
+    <div class="sec"><div class="sh">Query<span>82 benchmark genes</span></div><div class="pad">
+      <form id="f"><input id="gene" list="genes" placeholder="Gene symbol, e.g. SORL1" aria-label="Gene symbol" autocomplete="off"><button class="go" type="submit">Light up</button></form>
+      <datalist id="genes"></datalist><div class="miss" id="miss"></div><div class="chips" id="chips"></div>
+    </div></div>
+    <div class="sec"><div class="sh">Attribute<span>Value</span></div>
+      <table><tbody id="attr"><tr><td>Gene</td><td>–</td></tr><tr><td>Brain data says</td><td>Choose a gene</td></tr></tbody></table>
+    </div>
+    <div class="sec"><div class="sh">Regional signal<span>averaged across 6 donors</span></div><div class="pad">
+      <div id="regions"><div class="rr" style="color:var(--mute)">The 2 early regions and 5 comparison regions appear here.</div></div>
+      <div class="sum" id="rsum"></div>
+    </div></div>
+    <div class="sec"><div class="sh">Per-donor difference<span>early minus neocortex</span></div><div class="pad" id="donors"></div></div>
+    <div class="sec" id="models"></div>
+    <div class="sec"><details class="guide" open><summary class="sh">How to read this<span>tap to fold</span></summary><div class="pad">
+      <p><b>The brain</b> is a standard left hemisphere. When you choose a gene, each region is coloured by how active that gene is there, compared with the gene's own average across the cortex: mint is higher, violet is lower. Hover any region to see its name and value.</p>
+      <p><b>Early regions</b> (white dots): the entorhinal cortex and hippocampus, where Alzheimer's pathology usually begins (Braak stages I–II). The hippocampus sits inside the brain, so it shows as a glow. <b>Comparison regions</b> (hollow dots): five areas of the neocortex.</p>
+      <p><b>The verdict</b> comes from six donated brains (Allen Human Brain Atlas). A gene is "higher" or "lower" only when at least 5 of 6 brains agree; otherwise it is "unclear".</p>
+      <p><b>The models</b> were asked the same question three times each: once allowing "unknown", once forced to choose. Badges compare their answer with the brain data.</p>
+    </div></details></div>
+  <p class="note">Brain data: Allen Human Brain Atlas (6 adult donors, left hemisphere), processed with abagen; regions from the Desikan-Killiany atlas. Risk genes: Bellenguez et al. 2022, Nature Genetics (GWAS Catalog GCST90027158). Model answers are recorded benchmark runs via Portkey, not live calls.</p>
+  </aside>
+</main>
+<main class="study" id="study" hidden>
+<div class="wrap">
+  <section class="hero">
+    <p class="kick">The study</p>
+    <h2>Do AI chatbots know where Alzheimer's genes are active?</h2>
+    <p>I checked GPT-5.2 and Claude Sonnet 4.5 against gene activity measured in 6 real human brains.</p>
+    <div class="tiles">
+      <div class="tile"><span class="tk">01 · Honesty</span><b>96% <i>/</i> 79%</b><p>of the time they said <q>I don't know</q></p><small>GPT-5.2 / Claude</small></div>
+      <div class="tile"><span class="tk">02 · Accuracy</span><b>53% <i>/</i> 46%</b><p>right when forced to choose</p><small>a coin flip gets 50%</small></div>
+      <div class="tile"><span class="tk">03 · Confidence</span><b>60 <i>=</i> 60</b><p>GPT-5.2's confidence, right vs wrong</p><small>it can't tell when it's right</small></div>
+    </div>
+    <nav class="toc" aria-label="Sections"><a href="#s-q">Question</a><a href="#s-nb">Inside the notebook</a><a href="#s-results">Results</a><a href="#s-related">Related work</a><a href="#s-limits">Limits &amp; next</a><a href="#s-refs">References</a></nav>
+  </section>
+
+  <section class="blk" id="s-q"><p class="kick">The question</p><h3>Are Alzheimer's risk genes more active where the disease starts?</h3>
+    <div class="qrow">
+      <div class="q"><span class="qi">◎</span><b>Disease starts here</b><p>Entorhinal cortex + hippocampus, then spreads to the neocortex [1]</p></div>
+      <div class="q"><span class="qi">≡</span><b>71 risk genes</b><p>From the largest Alzheimer's genetics study [4]</p></div>
+      <div class="q"><span class="qi">⇄</span><b>Ask AI vs measure</b><p>Model answers checked against 6 donor brains [2]</p></div>
+    </div>
+    <p class="why">Why it matters: people ask chatbots health questions every day. No benchmark had tested this kind of question against real brain measurements [8, 10].</p>
+  </section>
+
+  <section class="blk" id="s-nb"><p class="kick">Inside the notebook</p><h3>From raw brain data to this website, in 6 Colab steps</h3>
+    <div class="cell"><div class="ch"><span>[1]</span>Load the brain atlas<em>6 donors · 83 regions</em></div>
+      <pre><code><k>import</k> abagen
+atlas = abagen.<f>fetch_desikan_killiany</f>()
+donor_expr, counts = abagen.<f>get_expression_data</f>(
+    atlas[<s>'image'</s>], atlas[<s>'info'</s>],
+    return_donors=<k>True</k>, return_counts=<k>True</k>)</code></pre>
+      <div class="out"><span class="ol">Out</span><img src="img/f1_samples.png" alt="Heatmap of tissue samples per region and donor. Hippocampus has 17 to 38 samples per donor, entorhinal cortex 2 to 4." loading="lazy"></div>
+    </div>
+
+    <div class="cell"><div class="ch"><span>[2]</span>Pick the risk genes<em>GWAS Catalog · Bellenguez 2022</em></div>
+      <pre><code>gwas = pd.<f>read_csv</f>(GWAS_FILE, sep=<s>'\t'</s>)
+strong = gwas[gwas[<s>'P-VALUE'</s>] &lt; <n>5e-8</n>]      <c># genome-wide significant</c>
+risk_genes = <f>clean</f>(strong[<s>'MAPPED_GENE'</s>]) + [<s>'APOE'</s>]</code></pre>
+      <div class="out"><span class="ol">Out</span><div class="funnel">
+        <div><b>89</b>significant associations</div><i>→</i><div><b>111</b>genes</div><i>→</i><div><b>71</b>in the brain atlas</div><i>+</i><div><b>11</b>control genes</div>
+      </div></div>
+    </div>
+
+    <div class="cell"><div class="ch"><span>[3]</span>Build the answer key<em>one vote per donor</em></div>
+      <pre><code><c># per donor: early regions minus neocortex</c>
+diff = e.<f>mean</f>() - l.<f>mean</f>()
+<c># label only if ≥80% of donors agree and the effect is ≥0.05</c>
+label = <s>'higher'</s> | <s>'lower'</s> | <s>'unclear'</s></code></pre>
+      <div class="out"><span class="ol">Out</span><img src="img/f2_key.png" alt="Bar chart of 71 risk genes sorted by early-minus-neocortex difference: 29 higher, 23 lower, 19 unclear. APOE is among the highest, SORL1 and CLU are lower." loading="lazy"></div>
+    </div>
+
+    <div class="cell"><div class="ch"><span>[4]</span>Ask the models<em>Portkey · 3 runs · 2 modes</em></div>
+      <pre><code>PROMPT = <s>"Is {gene} expressed higher or lower in the entorhinal cortex
+          and hippocampus than in the neocortex? Reply with JSON:
+          answer, confidence (0-100), reason"</s>
+<k>for</k> gene <k>in</k> genes: <k>for</k> model <k>in</k> [<s>'GPT-5.2'</s>, <s>'Claude Sonnet 4.5'</s>]:
+    <f>chat</f>(model, PROMPT.<f>format</f>(gene=gene))</code></pre>
+      <div class="out"><span class="ol">Out · APOE, run 1</span><div class="ans2">
+        <div class="aj"><span>GPT-5.2</span><code>{ "answer": <s>"unknown"</s>, "confidence": <n>35</n> }</code></div>
+        <div class="aj bad"><span>Claude Sonnet 4.5</span><code>{ "answer": <s>"lower"</s>, "confidence": <n>70</n> }</code></div>
+        <p>Brain data: <b class="hi">higher</b> (5 of 6 donors). Claude was wrong at 70% confidence.</p>
+      </div></div>
+    </div>
+
+    <div class="cell"><div class="ch"><span>[5]</span>Score the answers<em>vs coin flip &amp; majority</em></div>
+      <pre><code>score = { <s>'abstained'</s>, <s>'accuracy'</s>, <s>'macro-F1'</s>, <s>'calibration (ECE)'</s>, <s>'consistency'</s> }</code></pre>
+      <div class="out"><span class="ol">Out</span><table class="sc"><thead><tr><th>Risk genes</th><th>Said unknown</th><th>Accuracy (forced)</th><th>Same answer 3/3 (forced)</th></tr></thead><tbody>
+        <tr><td>GPT-5.2</td><td>96%</td><td>53%</td><td>62%</td></tr>
+        <tr><td>Claude Sonnet 4.5</td><td>79%</td><td>46%</td><td>78%</td></tr>
+        <tr class="dim"><td>Coin flip</td><td>–</td><td>50%</td><td>–</td></tr>
+      </tbody></table></div>
+    </div>
+
+    <div class="cell"><div class="ch"><span>[6]</span>Export for this website<em>demo_data.json</em></div>
+      <pre><code>json.<f>dump</f>({ <s>'answer_key'</s>, <s>'region_expression'</s>, <s>'donor_differences'</s>,
+            <s>'answers_unknown_allowed'</s>, <s>'answers_forced'</s> }, f)</code></pre>
+      <div class="out"><span class="ol">Out</span><a href="#APOE" class="shot" data-gene="APOE"><img src="img/f5_explorer.jpg" alt="The Explorer showing APOE: the entorhinal cortex lights up mint on a grey glass brain." loading="lazy"><span>Open APOE in the Explorer →</span></a></div>
+    </div>
+  </section>
+
+  <section class="blk" id="s-results"><p class="kick">Results</p><h3>What the models said</h3>
+    <div class="fig"><div class="fh"><b>1 · Given the choice, they mostly said "unknown"</b><span>Forced, Claude leaned on "lower"</span></div>
+      <img src="img/f3_mix.png" alt="Stacked bars: GPT-5.2 said unknown 96% and Claude 79% when allowed. Forced, GPT-5.2 split 50/50 higher/lower and Claude said lower 74%." loading="lazy"><p class="cap">52 risk genes × 3 runs = 156 answers per bar</p></div>
+    <div class="fig"><div class="fh"><b>2 · Forced to choose: coin-flip accuracy</b><span>dashed line = 50%</span></div>
+      <div class="bars">
+        <div class="bar"><span>GPT-5.2</span><div class="bt"><i style="width:53%"></i><u style="left:50%"></u></div><b>53%</b></div>
+        <div class="bar"><span>Claude Sonnet 4.5</span><div class="bt"><i style="width:45.5%"></i><u style="left:50%"></u></div><b>46%</b></div>
+        <div class="bar"><span>Always "higher"</span><div class="bt"><i class="ref" style="width:56%"></i><u style="left:50%"></u></div><b>56%</b></div>
+      </div></div>
+    <div class="fig"><div class="fh"><b>3 · Confidence was the same for right and wrong answers</b><span>forced run · each dot is one answer</span></div>
+      <img src="img/f4_conf.png" alt="Dot plot of stated confidence. GPT-5.2 averages 60 for both right and wrong answers; Claude averages 42 right and 41 wrong." loading="lazy"></div>
+    <div class="note2"><b>PROX1</b> is a textbook hippocampus gene. Both models said "higher", but the atlas says "unclear" (2 of 6 donors). The atlas region is too coarse to see this gene's pattern.</div>
+  </section>
+
+  <section class="blk" id="s-related"><p class="kick">Related work</p><h3>How this compares</h3>
+    <div class="rw">
+      <div><b>GeneTuring</b> [10]<span>Found confident wrong answers on genomics questions.</span><em>Here: mostly "unknown", but chance-level when pushed.</em></div>
+      <div><b>Med-PaLM / MultiMedQA</b> [8]<span>LLMs pass medical exam questions.</span><em>Here: that didn't carry over to measured brain data.</em></div>
+      <div><b>Confidence studies</b> [11, 12]<span>LLMs tend to be overconfident.</span><em>Here: confidence was flat, not useful.</em></div>
+      <div><b>GeneGPT</b> [9]<span>Database tools improve answers.</span><em>Next: give models the atlas as a tool.</em></div>
+      <div><b>Brain atlas + Alzheimer's</b> [5, 6, 7]<span>Gene activity relates to where the disease spreads.</span><em>Here: the same data, used to test AI.</em></div>
+    </div>
+  </section>
+
+  <section class="blk" id="s-limits"><div class="two">
+    <div><p class="kick">Limitations</p><ul class="ticks">
+      <li>Only 6 donor brains</li><li>Hippocampus is one coarse region</li><li>Healthy brains, not diseased tissue</li><li>2 models, 3 runs each</li><li>Mapped genes aren't always the causal gene</li></ul></div>
+    <div><p class="kick">Next steps</p><ul class="ticks">
+      <li>Give models atlas lookup as a tool</li><li>Finer regions and single-cell data</li><li>Other diseases: Parkinson's, ALS</li><li>Famous vs obscure genes</li></ul>
+      <p class="kick" style="margin-top:20px">What I'd do differently</p><ul class="ticks">
+      <li>Plan the forced-choice run from day one</li><li>Fix the gene source before downloading data</li><li>More runs and more models</li></ul></div>
+  </div></section>
+
+  <section class="blk" id="s-refs"><details><summary><span class="kick" style="margin:0">References (12)</span><span class="plus">+</span></summary>
+    <ol class="refs">
+      <li>Braak &amp; Braak. 1991. Neuropathological stageing of Alzheimer-related changes. <i>Acta Neuropathologica</i> 82(4), 239–259.</li>
+      <li>Hawrylycz et al. 2012. An anatomically comprehensive atlas of the adult human brain transcriptome. <i>Nature</i> 489, 391–399.</li>
+      <li>Markello et al. 2021. Standardizing workflows in imaging transcriptomics with the abagen toolbox. <i>eLife</i> 10, e72129.</li>
+      <li>Bellenguez et al. 2022. New insights into the genetic etiology of Alzheimer's disease and related dementias. <i>Nature Genetics</i> 54, 412–436.</li>
+      <li>Grothe et al. 2018. Molecular properties underlying regional vulnerability to Alzheimer's disease pathology. <i>Brain</i> 141(9), 2755–2771.</li>
+      <li>Sepulcre et al. 2018. Neurogenetic contributions to amyloid beta and tau spreading in the human cortex. <i>Nature Medicine</i> 24(12).</li>
+      <li>Fulcher, Arnatkeviciute &amp; Fornito. 2021. Overcoming false-positive gene-category enrichment in the analysis of spatially resolved transcriptomic brain atlas data. <i>Nature Communications</i> 12, 2669.</li>
+      <li>Singhal et al. 2023. Large language models encode clinical knowledge. <i>Nature</i> 620, 172–180.</li>
+      <li>Jin, Yang, Chen &amp; Lu. 2024. GeneGPT: Augmenting large language models with domain tools for improved access to biomedical information. <i>Bioinformatics</i> 40(2), btae075.</li>
+      <li>Shang, Liao, Ji &amp; Hou. 2025. Benchmarking large language models for genomic knowledge with GeneTuring. <i>Briefings in Bioinformatics</i> 26(5), bbaf492.</li>
+      <li>Xiong et al. 2024. Can LLMs express their uncertainty? An empirical evaluation of confidence elicitation in LLMs. <i>ICLR 2024</i>.</li>
+      <li>Guo, Pleiss, Sun &amp; Weinberger. 2017. On calibration of modern neural networks. <i>ICML 2017</i>, 1321–1330.</li>
+    </ol></details>
+    <p class="credit">Rutha Borse · School of Information, The University of Texas at Austin · <a href="High_Risk_Project_Rutha.ipynb">Colab notebook</a></p>
+  </section>
+</div>
+</main>
+<footer class="foot" id="foot"></footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+const MODELS = ['GPT-5.2', 'Claude Sonnet 4.5'];
+const CHIPS = ['SORL1', 'APOE', 'TREM2', 'PROX1', 'CLU', 'BIN1', 'APP'];
+const EARLY = ['entorhinal', 'hippocampus'], COMP = ['superiorfrontal', 'precentral', 'postcentral', 'superiorparietal', 'lateraloccipital'];
+const NAME = {bankssts:'Banks of sup. temporal sulcus',caudalanteriorcingulate:'Caudal anterior cingulate',caudalmiddlefrontal:'Caudal middle frontal',cuneus:'Cuneus',entorhinal:'Entorhinal cortex',fusiform:'Fusiform gyrus',inferiorparietal:'Inferior parietal',inferiortemporal:'Inferior temporal',isthmuscingulate:'Isthmus cingulate',lateraloccipital:'Lateral occipital',lateralorbitofrontal:'Lateral orbitofrontal',lingual:'Lingual gyrus',medialorbitofrontal:'Medial orbitofrontal',middletemporal:'Middle temporal',parahippocampal:'Parahippocampal gyrus',paracentral:'Paracentral lobule',parsopercularis:'Pars opercularis',parsorbitalis:'Pars orbitalis',parstriangularis:'Pars triangularis',pericalcarine:'Pericalcarine',postcentral:'Postcentral gyrus',posteriorcingulate:'Posterior cingulate',precentral:'Precentral gyrus',precuneus:'Precuneus',rostralanteriorcingulate:'Rostral anterior cingulate',rostralmiddlefrontal:'Rostral middle frontal',superiorfrontal:'Superior frontal gyrus',superiorparietal:'Superior parietal',superiortemporal:'Superior temporal',supramarginal:'Supramarginal gyrus',frontalpole:'Frontal pole',temporalpole:'Temporal pole',transversetemporal:'Transverse temporal',insula:'Insula',hippocampus:'Hippocampus'};
+const VIEWS = {medial:[-0.35,-Math.PI/2], lateral:[0.1,Math.PI/2], below:[-1.25,-Math.PI/2]};
+const BASE = [0.15, 0.17, 0.21];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const b64 = (s, T) => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); };
+let D, M, KEY = {}, geo, mesh, colors, from, to, delay, labels, regionInfo = {}, hippo, renderer, scene, camera, group, cur = null, lightT = -1, goal = null, spin = true, allLabels = false, holdUntil = 0, z = () => 0;
+
+Promise.all([fetch('demo.json').then(r => r.json()), fetch('mesh.json').then(r => r.json())]).then(([d, m]) => { D = d; M = m; init(); })
+  .catch(e => { $('idle').textContent = 'Could not load the data files'; console.error(e); });
+
+function init() {
+  D.answer_key.forEach(k => KEY[k.gene] = k);
+  $('genes').innerHTML = D.answer_key.map(k => `<option value="${k.gene}">`).join('');
+  $('chips').innerHTML = CHIPS.filter(g => KEY[g]).map(g => `<button class="chip" type="button" data-g="${g}">${g}</button>`).join('');
+  $('chips').onclick = e => { const g = e.target.dataset.g; if (g) show(g); };
+  $('f').onsubmit = e => { e.preventDefault(); show($('gene').value); };
+  document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { goal = VIEWS[b.dataset.view]; holdUntil = performance.now() + 8000; });
+  $('spin').onclick = () => { spin = !spin; $('spin').classList.toggle('on', spin); };
+  $('all').onclick = () => { allLabels = !allLabels; $('all').classList.toggle('on', allLabels); };
+  $('reset').onclick = reset;
+  stats(); build3d();
+  const h = decodeURIComponent(location.hash.slice(1)).toUpperCase();
+  if (KEY[h]) setTimeout(() => show(h), 700);
+
+  const route = () => { const st = location.hash === '#study'; $('study').hidden = !st; document.querySelector('.app').hidden = st; $('tabS').toggleAttribute('aria-current', st); $('tabE').toggleAttribute('aria-current', !st); if (st) $('tabS').setAttribute('aria-current','page'); else $('tabE').setAttribute('aria-current','page'); };
+  $('tabE').onclick = e => { e.preventDefault(); location.hash = cur || 'explore'; };
+  document.querySelectorAll('a.try').forEach(a => a.onclick = e => { e.preventDefault(); location.hash = cur || 'explore'; });
+  document.querySelectorAll('.toc a').forEach(a => a.onclick = e => { e.preventDefault(); document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }); });
+  addEventListener('hashchange', route); route();
+  addEventListener('hashchange', () => { const g = location.hash.slice(1).toUpperCase(); if (KEY[g] && g !== cur) show(g); });
+}
+
+function stats() {
+  const s = [];
+  MODELS.forEach(m => { const a = D.answers_unknown_allowed.filter(x => x.model === m); s.push([Math.round(100 * a.filter(x => x.answer === 'unknown').length / a.length) + '%', `${m} answered "unknown" (all 82 genes)`, `${m.split(' ')[0]} · unknown`]); });
+  MODELS.forEach(m => { const f = D.answers_forced.filter(x => x.model === m && KEY[x.gene].gene_type === 'risk' && KEY[x.gene].label !== 'unclear'); s.push([Math.round(100 * f.filter(x => x.answer === KEY[x.gene].label).length / f.length) + '%', `${m} accuracy when forced, risk genes (chance 50%)`, `${m.split(' ')[0]} · forced acc.`]); });
+  $('foot').innerHTML = s.map(x => `<div class="stat"><b>${x[0]}</b><span class="l">${x[1]}</span><span class="s">${x[2]}</span></div>`).join('');
+}
+
+function build3d() {
+  const pos = b64(M.pos, Int16Array), faces = b64(M.faces, Uint16Array);
+  labels = b64(M.labels, Uint8Array);
+  const n = labels.length, P = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { P[3*i] = pos[3*i] / 10; P[3*i+1] = pos[3*i+2] / 10; P[3*i+2] = -pos[3*i+1] / 10; }
+  geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(faces), 1));
+  geo.computeVertexNormals();
+  const N = geo.attributes.normal.array;
+  colors = new Float32Array(n * 3); from = new Float32Array(n * 3); to = new Float32Array(n * 3); delay = new Float32Array(n);
+  for (let i = 0; i < n; i++) { colors.set(BASE, 3*i); from.set(BASE, 3*i); to.set(BASE, 3*i); }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  for (let i = 0; i < n; i++) { const r = M.names[labels[i]]; if (!r) continue; const o = regionInfo[r] || (regionInfo[r] = { p: [0,0,0], nrm: [0,0,0], k: 0 }); for (let c = 0; c < 3; c++) { o.p[c] += P[3*i+c]; o.nrm[c] += N[3*i+c]; } o.k++; }
+  Object.values(regionInfo).forEach(o => { o.p = o.p.map(x => x / o.k); const L = Math.hypot(...o.nrm) || 1; o.nrm = o.nrm.map(x => x / L); });
+  const E = regionInfo.entorhinal.p; let mx = 0;
+  for (let i = 0; i < n; i++) { delay[i] = Math.hypot(P[3*i]-E[0], P[3*i+1]-E[1], P[3*i+2]-E[2]); mx = Math.max(mx, delay[i]); }
+  for (let i = 0; i < n; i++) delay[i] = delay[i] / mx * 0.9;
+  renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(30, 1, 1, 2000);
+  group = new THREE.Group(); scene.add(group);
+  const glass = new THREE.ShaderMaterial({ vertexColors: true, transparent: true,
+    uniforms: { rim: { value: new THREE.Color(0x9fb4c8) } },
+    vertexShader: 'varying vec3 vC; varying vec3 vN; varying vec3 vV; void main(){ vC = color; vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vV = -mv.xyz; gl_Position = projectionMatrix*mv; }',
+    fragmentShader: 'uniform vec3 rim; varying vec3 vC; varying vec3 vN; varying vec3 vV; void main(){ vec3 n = normalize(vN); vec3 v = normalize(vV); float f = pow(1.0 - abs(dot(n, v)), 2.4); float l = 0.45 + 0.55*max(dot(n, normalize(vec3(-0.4,0.6,0.7))), 0.0); vec3 c = vC*l*1.25 + rim*f*0.85; gl_FragColor = vec4(c, 0.93 + 0.07*f); }' });
+  mesh = new THREE.Mesh(geo, glass); group.add(mesh);
+  group.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xb8c4d0, wireframe: true, transparent: true, opacity: 0.045, depthWrite: false })));
+  group.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.9, vertexColors: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })));
+  const gc = document.createElement('canvas'); gc.width = gc.height = 64; const g = gc.getContext('2d'), rg = g.createRadialGradient(32,32,0,32,32,32);
+  rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(.4, 'rgba(255,255,255,.45)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.fillRect(0,0,64,64);
+  hippo = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gc), color: new THREE.Color(...BASE), blending: THREE.AdditiveBlending, depthTest: false, transparent: true }));
+  hippo.position.set(M.hippo[0], M.hippo[2], -M.hippo[1]); hippo.scale.set(24, 24, 1); group.add(hippo);
+  regionInfo.hippocampus = { p: [hippo.position.x, hippo.position.y, hippo.position.z], nrm: [0,0,0], inside: true };
+  group.rotation.set(-0.3, -Math.PI / 2, 0);
+  $('tags').innerHTML = Object.keys(regionInfo).map(r => `<div class="tag ${EARLY.includes(r) ? 'e' : COMP.includes(r) ? 'c' : 'o'}" data-r="${r}"><i></i>${NAME[r] || r}${r === 'hippocampus' ? ' (inside)' : ''}</div>`).join('');
+  const tagEls = [...document.querySelectorAll('.tag')];
+  const cv = $('c'); let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; goal = null; holdUntil = performance.now() + 6000; });
+  cv.addEventListener('pointermove', e => { if (drag) { group.rotation.y += (e.clientX - drag[0]) * 0.01; group.rotation.x = Math.max(-1.4, Math.min(1.4, group.rotation.x + (e.clientY - drag[1]) * 0.01)); drag = [e.clientX, e.clientY]; holdUntil = performance.now() + 6000; } else hover(e); });
+  cv.addEventListener('pointerup', () => { drag = null; cv.style.cursor = 'grab'; });
+  cv.addEventListener('pointerleave', () => $('tip').style.display = 'none');
+  const resize = () => { const s = $('vp'); renderer.setSize(s.clientWidth, s.clientHeight, false); camera.aspect = s.clientWidth / s.clientHeight; camera.position.set(0, 0, Math.max(365, 370 / camera.aspect)); camera.updateProjectionMatrix(); };
+  const ro = new ResizeObserver(resize); ro.observe($('vp')); resize();
+  const v = new THREE.Vector3(), nv = new THREE.Vector3();
+  let t0 = performance.now();
+  (function loop(t) {
+    const dt = Math.min(50, t - t0); t0 = t;
+    if (goal) { group.rotation.x += (goal[0] - group.rotation.x) * 0.08; let dy = goal[1] - group.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); group.rotation.y += dy * 0.08; if (Math.abs(dy) < 0.002 && Math.abs(goal[0] - group.rotation.x) < 0.002) goal = null; }
+    else if (spin && !drag && !reduce && t > holdUntil) group.rotation.y += dt * 0.00016;
+    if (lightT >= 0) {
+      lightT = reduce ? 2 : lightT + dt / 1000;
+      for (let i = 0; i < labels.length; i++) { const p = Math.max(0, Math.min(1, (lightT - delay[i]) / 0.6)), e = p * p * (3 - 2 * p); for (let c = 0; c < 3; c++) colors[3*i+c] = from[3*i+c] + (to[3*i+c] - from[3*i+c]) * e; }
+      if (lightT > 1.6) lightT = -1;
+      geo.attributes.color.needsUpdate = true;
+    }
+    renderer.render(scene, camera);
+    group.updateMatrixWorld();
+    const s = $('vp'), W = s.clientWidth, H = s.clientHeight;
+    tagEls.forEach(el => {
+      const r = el.dataset.r, o = regionInfo[r], key = EARLY.includes(r) || COMP.includes(r);
+      nv.set(...o.nrm).transformDirection(group.matrixWorld);
+      const facing = o.inside ? true : nv.z > 0.25, show = facing && (key || allLabels);
+      v.set(...o.p).applyMatrix4(group.matrixWorld).project(camera);
+      el.style.left = ((v.x + 1) / 2 * W + 6) + 'px'; el.style.top = ((1 - v.y) / 2 * H - 8) + 'px'; el.style.opacity = show ? 1 : 0;
+    });
+    requestAnimationFrame(loop);
+  })(t0);
+}
+
+const ray = new THREE.Raycaster(), mp = new THREE.Vector2();
+function hover(e) {
+  const r = $('c').getBoundingClientRect(); mp.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mp, camera); const hit = ray.intersectObject(mesh)[0], tip = $('tip');
+  if (!hit) { tip.style.display = 'none'; return; }
+  const reg = M.names[labels[hit.face.a]];
+  if (!reg) { tip.style.display = 'none'; return; }
+  const val = cur ? D.region_expression[cur][reg] : null;
+  tip.innerHTML = `<b>${NAME[reg] || reg}</b>${EARLY.includes(reg) ? ' · early region' : COMP.includes(reg) ? ' · comparison region' : ''}${val != null ? `<br>${cur} activity ${val.toFixed(2)} (${z(reg) >= 0 ? '+' : ''}${(z(reg) * 1.4).toFixed(1)} SD)` : ''}`;
+  tip.style.display = 'block'; tip.style.left = (e.clientX - r.left + 14) + 'px'; tip.style.top = (e.clientY - r.top + 10) + 'px';
+}
+
+function ramp(t) {
+  const lo = [0.36, 0.28, 1.0], hi = [0.16, 0.86, 0.70], top = [0.75, 1.0, 0.92];
+  if (t < 0) return BASE.map((b, i) => b + (lo[i] - b) * -t);
+  if (t < 0.7) return BASE.map((b, i) => b + (hi[i] - b) * t / 0.7);
+  return hi.map((h, i) => h + (top[i] - h) * (t - 0.7) / 0.3);
+}
+
+function reset() {
+  cur = null; $('gene').value = ''; history.replaceState(null, '', location.pathname);
+  from.set(colors); for (let i = 0; i < labels.length; i++) to.set(BASE, 3*i); lightT = 0; hippo.material.color.setRGB(...BASE);
+  $('idle').style.opacity = 1; document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  $('attr').innerHTML = '<tr><td>Gene</td><td>–</td></tr><tr><td>Brain data says</td><td>Choose a gene</td></tr>';
+  $('regions').innerHTML = '<div class="rr" style="color:var(--mute)">The 2 early regions and 5 comparison regions appear here.</div>'; $('rsum').innerHTML = ''; $('donors').innerHTML = ''; $('models').innerHTML = '';
+  goal = [-0.3, -Math.PI / 2];
+}
+
+function show(raw) {
+  const g = (raw || '').trim().toUpperCase();
+  if (!KEY[g]) { $('miss').textContent = `${g || 'That'} is not one of the 82 benchmark genes. Try SORL1, APOE or TREM2.`; return; }
+  $('miss').textContent = ''; cur = g; $('gene').value = g; $('idle').style.opacity = 0;
+  if (location.hash.slice(1) !== g) history.replaceState(null, '', '#' + g);
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.g === g));
+  const k = KEY[g], ex = D.region_expression[g];
+  const cortex = Object.values(M.names).map(r => ex[r]).filter(x => x != null);
+  const mu = cortex.reduce((s, x) => s + x, 0) / cortex.length, sd = Math.sqrt(cortex.reduce((s, x) => s + (x - mu) ** 2, 0) / cortex.length) || 1;
+  z = r => { const x = ex[r]; return x == null ? 0 : Math.max(-1, Math.min(1, (x - mu) / sd / 1.4)); };
+  from.set(colors);
+  for (let i = 0; i < labels.length; i++) to.set(labels[i] ? ramp(z(M.names[labels[i]])) : [0.06, 0.07, 0.09], 3*i);
+  lightT = 0; hippo.material.color.setRGB(...ramp(z('hippocampus')));
+  goal = VIEWS.medial; holdUntil = performance.now() + 7000;
+  const word = { higher: 'Higher where Alzheimer\'s starts', lower: 'Lower where Alzheimer\'s starts', unclear: 'Unclear: brains disagree' }[k.label];
+  const col = k.label === 'higher' ? 'var(--hi)' : k.label === 'lower' ? 'var(--lo)' : 'var(--mute)';
+  $('attr').innerHTML = [['Gene', `<b>${g}</b>`], ['Type', k.gene_type === 'risk' ? 'Alzheimer\'s risk gene (GWAS)' : 'Control gene (strong known pattern)'], ['Brain data says', `<span class="verdict" style="color:${col}">${word}</span>`], ['Donors agreeing', `${k.label === 'lower' ? k.donors - k.donors_higher : k.donors_higher} of ${k.donors} ${k.label === 'lower' ? 'lower' : 'higher'}`], ['Median difference', `${k.median_diff > 0 ? '+' : ''}${k.median_diff.toFixed(3)} (0–1 scale)`]].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  const reg = [...EARLY, ...COMP].map(r => [r, ex[r]]), mxv = Math.max(...reg.map(x => x[1] ?? 0), 0.01);
+  $('regions').innerHTML = reg.map(([r, x], i) => `<div class="rr"><span>${NAME[r]}</span><div class="trk"><i style="width:0;background:${i < 2 ? '#eef1f4' : '#4a525c'}" data-w="${(x ?? 0) / mxv * 100}"></i></div><b>${x == null ? '–' : x.toFixed(2)}</b></div>`).join('');
+  requestAnimationFrame(() => document.querySelectorAll('.trk i').forEach(el => el.style.width = el.dataset.w + '%'));
+  const avg = a => a.reduce((s, x) => s + x, 0) / a.length, ea = avg(EARLY.map(r => ex[r])), ca = avg(COMP.map(r => ex[r]));
+  $('rsum').innerHTML = `<span>Early average <b>${ea.toFixed(2)}</b></span><span>Neocortex average <b>${ca.toFixed(2)}</b></span><span>Difference <b style="color:${ea > ca ? 'var(--hi)' : 'var(--lo)'}">${ea > ca ? '+' : ''}${(ea - ca).toFixed(2)}</b></span>`;
+  const dd = Object.entries(D.donor_differences[g]).filter(e => e[1] != null), m2 = Math.max(0.3, ...dd.map(e => Math.abs(e[1])));
+  $('donors').innerHTML = dd.map(([d, x]) => { const w = Math.abs(x) / m2 * 50; return `<div class="dn"><span>${d}</span><div class="dt"><i style="left:${x < 0 ? 50 - w : 50}%;width:${w}%;background:${x > 0 ? 'var(--hi)' : 'var(--lo)'}"></i></div><b>${x > 0 ? '+' : ''}${x.toFixed(2)}</b></div>`; }).join('');
+  models(g, k);
+}
+
+let typers = [];
+function summarize(list, k) {
+  const cnt = {}; list.forEach(x => cnt[x.answer] = (cnt[x.answer] || 0) + 1);
+  const [ans, n] = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+  const cs = list.filter(x => x.answer === ans && x.confidence != null).map(x => x.confidence);
+  const conf = cs.length ? Math.round(cs.reduce((s, x) => s + x, 0) / cs.length) : null;
+  let v = ['na', 'Abstained'];
+  if (ans === 'higher' || ans === 'lower') v = k.label === 'unclear' ? ['na', 'Data unclear'] : ans === k.label ? ['ok', 'Correct'] : ['bad', 'Wrong'];
+  return { ans, n, total: list.length, conf, v, why: (list.find(x => x.answer === ans) || {}).reason || '' };
+}
+function models(g, k) {
+  typers.forEach(clearInterval); typers = [];
+  $('models').innerHTML = MODELS.map((m, mi) => {
+    const a = summarize(D.answers_unknown_allowed.filter(x => x.gene === g && x.model === m), k), f = summarize(D.answers_forced.filter(x => x.gene === g && x.model === m), k);
+    return `<div class="sh">${m}<span>3 runs per question</span></div><table class="mt"><tbody>${[['"Unknown" allowed', a], ['Forced to choose', f]].map(([l, s]) => `<tr><td>${l}<br><span style="color:var(--mute)">${s.n} of ${s.total} runs</span></td><td><span class="ans">${s.ans}</span><br><span style="color:var(--mute)">confidence ${s.conf ?? '–'}</span></td><td style="text-align:right"><span class="v ${s.v[0]}">${s.v[1]}</span></td></tr>`).join('')}</tbody></table><div class="why" data-t="${('"' + f.why + '"').replace(/"/g, '&quot;')}"></div>`;
+  }).join('');
+  document.querySelectorAll('.why').forEach((el, i) => {
+    const t = el.dataset.t; el.innerHTML = '<em>Reason when forced: </em><span></span>'; const sp = el.querySelector('span');
+    if (reduce) { sp.textContent = t; return; }
+    let c = 0; setTimeout(() => { const id = setInterval(() => { c += 3; sp.textContent = t.slice(0, c); if (c >= t.length) clearInterval(id); }, 16); typers.push(id); }, 1200 + i * 700);
+  });
+}
+}
+</script>
+</body>
+</html>
